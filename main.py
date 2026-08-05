@@ -10,52 +10,96 @@ CHANNEL_ID = os.getenv("CHANNEL_ID")
 BASE_API = "https://khakhi-ni-khumari.lovable.app/api/public/pdfs"
 CONFIG_FILE = "config.json"
 
+
 def load_last_date():
     with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-        return datetime.strptime(json.load(f)["last_sent_date"], "%Y-%m-%d")
+        data = json.load(f)
+    return datetime.strptime(data["last_sent_date"], "%Y-%m-%d")
+
 
 def save_last_date(dt):
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump({"last_sent_date": dt.strftime("%Y-%m-%d")}, f, indent=2)
+        json.dump(
+            {"last_sent_date": dt.strftime("%Y-%m-%d")},
+            f,
+            indent=2
+        )
+
 
 def send_to_telegram(pdf_bytes, filename, caption):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
-    files = {"document": (filename, pdf_bytes, "application/pdf")}
-    data = {"chat_id": CHANNEL_ID, "caption": caption}
-    r = requests.post(url, data=data, files=files)
-    r.raise_for_status()
+
+    files = {
+        "document": (filename, pdf_bytes, "application/pdf")
+    }
+
+    data = {
+        "chat_id": CHANNEL_ID,
+        "caption": caption
+    }
+
+    response = requests.post(
+        url,
+        data=data,
+        files=files,
+        timeout=120
+    )
+
+    response.raise_for_status()
+
 
 def main():
     current = load_last_date() + relativedelta(days=1)
 
     while True:
+
         date_str = current.strftime("%Y-%m-%d")
-        api = f"{BASE_API}/daily-{date_str}"
-        print("Checking:", api)
 
-        r = requests.get(api)
-        if r.status_code != 200:
-            print("No more PDFs found.")
+        download_url = (
+            f"{BASE_API}/daily-{date_str}?dl=1"
+        )
+
+        print("Checking:", download_url)
+
+        response = requests.get(
+            download_url,
+            timeout=120,
+            allow_redirects=True
+        )
+
+        if response.status_code != 200:
+            print("No PDF Found.")
             break
 
-        # TODO: Adjust these keys to match your API response.
-        data = r.json()
-        pdf_url = data.get("pdfUrl") or data.get("url")
+        content_type = response.headers.get(
+            "Content-Type",
+            ""
+        ).lower()
 
-        if not pdf_url:
-            print("PDF URL missing in API response.")
+        if (
+            "pdf" not in content_type
+            and not response.content.startswith(b"%PDF")
+        ):
+            print("Response is not PDF.")
             break
 
-        pdf = requests.get(pdf_url)
-        pdf.raise_for_status()
+        caption = (
+            f"📚 Daily Current Affairs\n"
+            f"📅 {date_str}"
+        )
 
-        caption = f"📚 Daily Current Affairs\n📅 {date_str}"
-        send_to_telegram(pdf.content, f"daily-{date_str}.pdf", caption)
+        send_to_telegram(
+            response.content,
+            f"Daily_Current_Affairs_{date_str}.pdf",
+            caption
+        )
 
         save_last_date(current)
+
         print("Sent:", date_str)
 
         current += relativedelta(days=1)
+
 
 if __name__ == "__main__":
     main()
