@@ -34,8 +34,9 @@ def send_to_telegram(pdf_bytes, filename, caption):
     }
 
     data = {
-        "chat_id": CHANNEL_ID,
-        "caption": caption
+    "chat_id": CHANNEL_ID,
+    "caption": caption,
+    "parse_mode": "HTML"
     }
 
     response = requests.post(
@@ -84,9 +85,10 @@ def main():
             break
 
         caption = (
-            f"📚 Daily Current Affairs\n"
-            f"📅 {date_str}"
-        )
+    f"📚 Daily Current Affairs\n"
+    f"📅 {date_str}\n\n"
+    f'🌐 <a href="https://khakhi-ni-khumari.lovable.app">Visit Website</a>'
+)
 
         send_to_telegram(
             response.content,
