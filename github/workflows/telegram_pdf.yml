@@ -1,0 +1,30 @@
+name: Daily PDF Telegram Bot
+
+on:
+  schedule:
+    - cron: "30 1 * * *"   # દરરોજ 07:00 IST
+  workflow_dispatch:
+
+jobs:
+  send_pdf:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run Bot
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+        run: |
+          python main.py
